@@ -9,4 +9,5 @@ export interface Load {
   timestamp: Date;
   pickupDate: Date;
   deliveryDate: Date;
+  reference?: string;
 }

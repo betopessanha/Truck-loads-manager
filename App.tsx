@@ -127,6 +127,7 @@ const App: React.FC = () => {
         totalMiles: updatedLoad.totalMiles,
         pickupDate: formatForSupabase(updatedLoad.pickupDate),
         deliveryDate: formatForSupabase(updatedLoad.deliveryDate),
+        reference: updatedLoad.reference,
       })
       .eq('id', updatedLoad.id)
       .select()

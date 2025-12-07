@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { type Load } from '../types';
 import AutocompleteInput from './AutocompleteInput';
+import DatePickerInput from './DatePickerInput';
 import { usCities } from '../data/cities';
 import { getDistanceFromLatLonInMiles } from '../utils/distance';
 
@@ -57,6 +58,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
+  const [reference, setReference] = useState('');
   const [emptyMiles, setEmptyMiles] = useState('');
   const [loadedMiles, setLoadedMiles] = useState('');
   const [totalMiles, setTotalMiles] = useState(0);
@@ -71,8 +73,9 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad
     setCurrentLocation('');
     setPickupLocation('');
     setDeliveryLocation('');
-    setPickupDate('');
-    setDeliveryDate('');
+    setPickupDate(formatDateForInput(new Date()));
+    setDeliveryDate(formatDateForInput(new Date()));
+    setReference('');
   };
 
   useEffect(() => {
@@ -82,6 +85,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad
       setDeliveryLocation(loadToEdit.deliveryLocation);
       setPickupDate(formatDateForInput(loadToEdit.pickupDate));
       setDeliveryDate(formatDateForInput(loadToEdit.deliveryDate));
+      setReference(loadToEdit.reference || '');
       setEmptyMiles(String(loadToEdit.emptyMiles));
       setLoadedMiles(String(loadToEdit.loadedMiles));
     } else {
@@ -196,6 +200,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad
           deliveryLocation,
           pickupDate: new Date(pickupDate + 'T00:00:00'), // Ensure local date is parsed correctly
           deliveryDate: new Date(deliveryDate + 'T00:00:00'),
+          reference,
           emptyMiles: Number(emptyMiles),
           loadedMiles: Number(loadedMiles),
           totalMiles,
@@ -207,6 +212,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad
           deliveryLocation,
           pickupDate: new Date(pickupDate + 'T00:00:00'), // Ensure local date is parsed correctly
           deliveryDate: new Date(deliveryDate + 'T00:00:00'),
+          reference,
           emptyMiles: Number(emptyMiles),
           loadedMiles: Number(loadedMiles),
           totalMiles,
@@ -278,26 +284,34 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad
           />
         </div>
         
+        <div>
+          <label htmlFor="reference" className="block text-sm font-medium text-gray-700 mb-1">Reference (Optional)</label>
+          <input
+            type="text"
+            id="reference"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            placeholder="e.g., PO #12345, Booking #XYZ"
+          />
+        </div>
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
             <div>
               <label htmlFor="pickupDate" className="block text-sm font-medium text-gray-700">Pickup Date</label>
-              <input
-                type="date"
-                id="pickupDate"
-                value={pickupDate}
-                onChange={(e) => setPickupDate(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              <DatePickerInput
+                 id="pickupDate"
+                 value={pickupDate}
+                 onChange={setPickupDate}
               />
               <DateShortcuts setDate={setPickupDate} />
             </div>
             <div>
               <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-700">Delivery Date</label>
-              <input
-                type="date"
-                id="deliveryDate"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              <DatePickerInput
+                 id="deliveryDate"
+                 value={deliveryDate}
+                 onChange={setDeliveryDate}
               />
               <DateShortcuts setDate={setDeliveryDate} />
             </div>

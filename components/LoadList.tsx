@@ -35,6 +35,9 @@ const LoadList: React.FC<LoadListProps> = ({ loads, onEdit, onDelete }) => {
                 <div className='flex-1 min-w-0'>
                   <p className="font-semibold text-base sm:text-lg text-blue-700 truncate">{load.pickupLocation} ➜ {load.deliveryLocation}</p>
                   <p className="text-xs text-gray-500 mt-1 truncate">Load ID: {load.id}</p>
+                  {load.reference && (
+                     <p className="text-xs text-gray-500 mt-1 truncate">Ref: {load.reference}</p>
+                  )}
                 </div>
                 <div className="flex items-center space-x-2 mt-2 sm:mt-0 sm:ml-4">
                   <div className="flex items-center text-sm text-gray-500 whitespace-nowrap">
