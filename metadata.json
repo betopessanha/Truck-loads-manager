@@ -1,0 +1,7 @@
+{
+  "name": "Truck Load Manager",
+  "description": "An application to register, track, and visualize truck loads, including mileage and locations.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
