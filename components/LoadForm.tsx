@@ -169,7 +169,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Add New Load</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800">Add New Load</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="currentLocation" className="block text-sm font-medium text-gray-700 mb-1">Current Location</label>
@@ -181,7 +181,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
               suggestions={cityNames}
               placeholder="Ex: Chicago, IL"
               wrapperClassName="flex-1"
-              inputClassName="bg-white focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-none rounded-l-md sm:text-sm border-gray-300 pl-3 pr-10 py-2"
+              inputClassName="bg-white focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-none rounded-l-md sm:text-sm border border-gray-300 pl-3 pr-10 py-2"
             />
             <button
               type="button"
@@ -281,7 +281,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
             </svg>
             <div>
               <p className="text-sm font-medium text-blue-800">Total Miles</p>
-              <p className="text-3xl font-bold text-blue-600">{totalMiles.toLocaleString()}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-blue-600">{totalMiles.toLocaleString()}</p>
             </div>
         </div>
 

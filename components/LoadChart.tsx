@@ -18,7 +18,7 @@ const LoadChart: React.FC<LoadChartProps> = ({ loads }) => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Load Evolution (Miles)</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800">Load Evolution (Miles)</h2>
        {loads.length > 0 ? (
         <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>

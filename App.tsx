@@ -17,8 +17,8 @@ const App: React.FC = () => {
       loadedMiles: 135,
       totalMiles: 230,
       timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      pickupDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      deliveryDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      pickupDate: new Date('2025-05-12T12:00:00Z'),
+      deliveryDate: new Date('2025-06-12T12:00:00Z'),
     },
     {
       id: '2',
@@ -29,8 +29,8 @@ const App: React.FC = () => {
       loadedMiles: 300,
       totalMiles: 570,
       timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-      pickupDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      deliveryDate: new Date(),
+      pickupDate: new Date('2025-06-12T12:00:00Z'),
+      deliveryDate: new Date('2025-07-12T12:00:00Z'),
     },
     {
       id: '3',
@@ -41,31 +41,33 @@ const App: React.FC = () => {
       loadedMiles: 1500,
       totalMiles: 1550,
       timestamp: new Date(), // Today
-      pickupDate: new Date(),
-      deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      pickupDate: new Date('2025-07-12T12:00:00Z'),
+      deliveryDate: new Date('2025-10-12T12:00:00Z'),
     },
   ]);
-  const [activeTab, setActiveTab] = useState<'evolution' | 'loads'>('evolution');
+  const [activeTab, setActiveTab] = useState<'evolution' | 'loads'>('loads');
 
 
   const addLoad = (load: Omit<Load, 'id' | 'timestamp'>) => {
-    const newLoad: Load = {
-      ...load,
-      id: new Date().toISOString(),
-      timestamp: new Date(),
-    };
-    setLoads(prevLoads => [...prevLoads, newLoad]);
+    setLoads(prevLoads => {
+      const newId = prevLoads.length > 0 ? Math.max(...prevLoads.map(l => parseInt(l.id))) + 1 : 1;
+      const newLoad: Load = {
+        ...load,
+        id: String(newId),
+        timestamp: new Date(),
+      };
+      return [...prevLoads, newLoad];
+    });
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-gray-800">
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mr-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h2a1 1 0 001-1V7a1 1 0 00-1-1h-2" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8 mr-3 text-blue-600">
+              <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM22.5 13.5V6.375c0-1.035-.84-1.875-1.875-1.875h-.375a3 3 0 0 0-3-3H9.375a3 3 0 0 0-3 3H6c-1.036 0-1.875.84-1.875 1.875v7.125c0 .621.504 1.125 1.125 1.125h.375a3 3 0 0 1 5.25 0h.375a3 3 0 0 1 5.25 0h.375c.621 0 1.125-.504 1.125-1.125v-7.125Zm-18-3a.375.375 0 0 1 .375-.375h.375a.375.375 0 0 1 .375.375v.375h-.75V10.5Z" />
+              <path d="M8.25 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM15.75 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
             </svg>
             Truck Load Manager
           </h1>
@@ -80,7 +82,7 @@ const App: React.FC = () => {
           </div>
           <div className="lg:col-span-2">
             <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              <nav className="-mb-px flex space-x-4 sm:space-x-8" aria-label="Tabs">
                 <button
                   onClick={() => setActiveTab('evolution')}
                   className={`
