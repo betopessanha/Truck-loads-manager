@@ -1,6 +1,5 @@
-
 export interface Load {
-  id: string;
+  id: number;
   currentLocation: string;
   pickupLocation: string;
   deliveryLocation: string;

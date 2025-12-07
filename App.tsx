@@ -1,63 +1,171 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LoadForm from './components/LoadForm';
 import LoadList from './components/LoadList';
 import LoadChart from './components/LoadChart';
 import { type Load } from './types';
+import { supabase } from './supabaseClient';
+
+// Helper function to reliably format a Date object to a 'YYYY-MM-DD' string
+// based on the user's local timezone, avoiding UTC conversion issues.
+const formatForSupabase = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 const App: React.FC = () => {
-  const [loads, setLoads] = useState<Load[]>([
-    // Initial sample data
-    {
-      id: '1',
-      currentLocation: 'New York, NY',
-      pickupLocation: 'Philadelphia, PA',
-      deliveryLocation: 'Washington, DC',
-      emptyMiles: 95,
-      loadedMiles: 135,
-      totalMiles: 230,
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      pickupDate: new Date('2025-05-12T12:00:00Z'),
-      deliveryDate: new Date('2025-06-12T12:00:00Z'),
-    },
-    {
-      id: '2',
-      currentLocation: 'Los Angeles, CA',
-      pickupLocation: 'Las Vegas, NV',
-      deliveryLocation: 'Phoenix, AZ',
-      emptyMiles: 270,
-      loadedMiles: 300,
-      totalMiles: 570,
-      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-      pickupDate: new Date('2025-06-12T12:00:00Z'),
-      deliveryDate: new Date('2025-07-12T12:00:00Z'),
-    },
-    {
-      id: '3',
-      currentLocation: 'Boston, MA',
-      pickupLocation: 'Springfield, MA',
-      deliveryLocation: 'Phoenix, AZ',
-      emptyMiles: 50,
-      loadedMiles: 1500,
-      totalMiles: 1550,
-      timestamp: new Date(), // Today
-      pickupDate: new Date('2025-07-12T12:00:00Z'),
-      deliveryDate: new Date('2025-10-12T12:00:00Z'),
-    },
-  ]);
+  const [loads, setLoads] = useState<Load[]>([]);
   const [activeTab, setActiveTab] = useState<'evolution' | 'loads'>('loads');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editingLoad, setEditingLoad] = useState<Load | null>(null);
 
+  // If Supabase isn't configured, show a helpful message instead of crashing.
+  if (!supabase) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Required</h1>
+          <p className="text-gray-700 mb-2">
+            The application cannot connect to the database because the Supabase environment variables are missing.
+          </p>
+          <p className="text-gray-700 mb-6">
+            Please configure the following secrets for your project:
+          </p>
+          <div className="text-left bg-gray-100 p-4 rounded-md font-mono text-sm text-gray-800">
+            <p><span className="font-semibold">SUPABASE_URL</span> = <span className="text-gray-500">"Your Supabase Project URL"</span></p>
+            <p className="mt-2"><span className="font-semibold">SUPABASE_ANON_KEY</span> = <span className="text-gray-500">"Your Supabase Anon Key"</span></p>
+          </div>
+          <p className="text-sm text-gray-500 mt-6">
+            You can find these values in your Supabase project dashboard under <span className="font-semibold">Settings &gt; API</span>.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  const addLoad = (load: Omit<Load, 'id' | 'timestamp'>) => {
-    setLoads(prevLoads => {
-      const newId = prevLoads.length > 0 ? Math.max(...prevLoads.map(l => parseInt(l.id))) + 1 : 1;
-      const newLoad: Load = {
-        ...load,
-        id: String(newId),
-        timestamp: new Date(),
+  useEffect(() => {
+    const fetchLoads = async () => {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('loads')
+        .select('*')
+        .order('timestamp', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching loads:', error);
+        setError('Failed to fetch loads. Please check your Supabase configuration and RLS policies.');
+      } else if (data) {
+        // Convert date strings from Supabase to Date objects, ensuring correct timezone handling.
+        // Appending T00:00:00 treats the date string as local, preventing UTC conversion shifts.
+        const formattedData = data.map(load => ({
+          ...load,
+          timestamp: new Date(load.timestamp),
+          pickupDate: new Date(load.pickupDate + 'T00:00:00'),
+          deliveryDate: new Date(load.deliveryDate + 'T00:00:00'),
+        }));
+        setLoads(formattedData);
+      }
+      setLoading(false);
+    };
+
+    fetchLoads();
+  }, []);
+
+  const addLoad = async (load: Omit<Load, 'id' | 'timestamp'>) => {
+    const { data, error } = await supabase
+      .from('loads')
+      .insert([
+        {
+          ...load,
+          pickupDate: formatForSupabase(load.pickupDate),
+          deliveryDate: formatForSupabase(load.deliveryDate),
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding load:', error);
+      alert('Failed to add load.');
+      throw error; // Re-throw to be caught in the form
+    } 
+    
+    if (data) {
+      const newLoad = {
+        ...data,
+        timestamp: new Date(data.timestamp),
+        pickupDate: new Date(data.pickupDate + 'T00:00:00'),
+        deliveryDate: new Date(data.deliveryDate + 'T00:00:00'),
       };
-      return [...prevLoads, newLoad];
-    });
+      setLoads(prevLoads => [newLoad, ...prevLoads]);
+    }
+  };
+
+  const handleStartEdit = (load: Load) => {
+    setEditingLoad(load);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLoad(null);
+  };
+
+  const handleUpdateLoad = async (updatedLoad: Load) => {
+    const { data, error } = await supabase
+      .from('loads')
+      .update({
+        // Omit id and timestamp from the update payload, they shouldn't change
+        currentLocation: updatedLoad.currentLocation,
+        pickupLocation: updatedLoad.pickupLocation,
+        deliveryLocation: updatedLoad.deliveryLocation,
+        emptyMiles: updatedLoad.emptyMiles,
+        loadedMiles: updatedLoad.loadedMiles,
+        totalMiles: updatedLoad.totalMiles,
+        pickupDate: formatForSupabase(updatedLoad.pickupDate),
+        deliveryDate: formatForSupabase(updatedLoad.deliveryDate),
+      })
+      .eq('id', updatedLoad.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating load:', error);
+      alert('Failed to update load.');
+      throw error;
+    }
+
+    if (data) {
+      const freshLoad = {
+        ...data,
+        timestamp: new Date(data.timestamp),
+        pickupDate: new Date(data.pickupDate + 'T00:00:00'),
+        deliveryDate: new Date(data.deliveryDate + 'T00:00:00'),
+      };
+      setLoads(loads.map(l => l.id === freshLoad.id ? freshLoad : l));
+      setEditingLoad(null); // Exit edit mode
+    }
+  };
+
+  const handleDeleteLoad = async (loadId: number) => {
+    if (!window.confirm('Are you sure you want to delete this load?')) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('loads')
+      .delete()
+      .eq('id', loadId);
+
+    if (error) {
+      console.error('Error deleting load:', error);
+      alert(`Failed to delete load: ${error.message}`);
+    } else {
+      setLoads(loads.filter(load => load.id !== loadId));
+    }
   };
 
   return (
@@ -78,7 +186,12 @@ const App: React.FC = () => {
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1">
-            <LoadForm onAddLoad={addLoad} />
+            <LoadForm 
+              onAddLoad={addLoad} 
+              loadToEdit={editingLoad}
+              onUpdateLoad={handleUpdateLoad}
+              onCancelEdit={handleCancelEdit}
+            />
           </div>
           <div className="lg:col-span-2">
             <div className="border-b border-gray-200">
@@ -112,7 +225,15 @@ const App: React.FC = () => {
             </div>
             <div className="mt-8">
               {activeTab === 'evolution' && <LoadChart loads={loads} />}
-              {activeTab === 'loads' && <LoadList loads={loads} />}
+              {activeTab === 'loads' && (
+                loading ? (
+                  <div className="flex justify-center items-center h-48"><p className="text-gray-500">Loading loads...</p></div>
+                ) : error ? (
+                  <div className="flex justify-center items-center h-48"><p className="text-red-500 font-medium">{error}</p></div>
+                ) : (
+                  <LoadList loads={loads} onEdit={handleStartEdit} onDelete={handleDeleteLoad} />
+                )
+              )}
             </div>
           </div>
         </div>

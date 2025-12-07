@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { type Load } from '../types';
 import AutocompleteInput from './AutocompleteInput';
@@ -6,13 +5,18 @@ import { usCities } from '../data/cities';
 import { getDistanceFromLatLonInMiles } from '../utils/distance';
 
 interface LoadFormProps {
-  onAddLoad: (load: Omit<Load, 'id' | 'timestamp'>) => void;
+  onAddLoad: (load: Omit<Load, 'id' | 'timestamp'>) => Promise<void>;
+  loadToEdit: Load | null;
+  onUpdateLoad: (load: Load) => Promise<void>;
+  onCancelEdit: () => void;
 }
 
 const formatDateForInput = (date: Date): string => {
+  // Formats a Date object into "YYYY-MM-DD" string required by input[type="date"]
+  // by using local date parts to avoid timezone shifts.
   const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
@@ -47,7 +51,7 @@ const DateShortcuts = ({ setDate }: { setDate: (date: string) => void }) => {
   );
 };
 
-const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
+const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad, loadToEdit, onUpdateLoad, onCancelEdit }) => {
   const [currentLocation, setCurrentLocation] = useState('');
   const [pickupLocation, setPickupLocation] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
@@ -57,8 +61,33 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
   const [loadedMiles, setLoadedMiles] = useState('');
   const [totalMiles, setTotalMiles] = useState(0);
   const [isLocating, setIsLocating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const isEditMode = !!loadToEdit;
 
   const cityNames = usCities.map(city => city.name);
+
+  const resetForm = () => {
+    setCurrentLocation('');
+    setPickupLocation('');
+    setDeliveryLocation('');
+    setPickupDate('');
+    setDeliveryDate('');
+  };
+
+  useEffect(() => {
+    if (loadToEdit) {
+      setCurrentLocation(loadToEdit.currentLocation);
+      setPickupLocation(loadToEdit.pickupLocation);
+      setDeliveryLocation(loadToEdit.deliveryLocation);
+      setPickupDate(formatDateForInput(loadToEdit.pickupDate));
+      setDeliveryDate(formatDateForInput(loadToEdit.deliveryDate));
+      setEmptyMiles(String(loadToEdit.emptyMiles));
+      setLoadedMiles(String(loadToEdit.loadedMiles));
+    } else {
+      resetForm();
+    }
+  }, [loadToEdit]);
 
   useEffect(() => {
     const empty = Number(emptyMiles) || 0;
@@ -67,6 +96,12 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
   }, [emptyMiles, loadedMiles]);
 
   useEffect(() => {
+    // If current location is not provided, empty miles are 0.
+    if (!currentLocation) {
+      setEmptyMiles('0');
+      return;
+    }
+
     const getCoords = (locationName: string) => usCities.find(c => c.name === locationName);
 
     let startCoords: { latitude: number; longitude: number } | null = null;
@@ -82,7 +117,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
           startCoords = { latitude: lat, longitude: lon };
         }
       }
-    } else if (currentLocation) {
+    } else {
       startCoords = getCoords(currentLocation) || null;
     }
 
@@ -143,33 +178,51 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentLocation || !pickupLocation || !deliveryLocation || !pickupDate || !deliveryDate || !emptyMiles || !loadedMiles) {
-      alert('Please fill in all fields.');
+    // Current location is optional. Empty miles will be 0 if it's blank.
+    if (!pickupLocation || !deliveryLocation || !pickupDate || !deliveryDate || emptyMiles === '' || loadedMiles === '') {
+      alert('Please fill in all required fields and ensure locations are valid.');
       return;
     }
-    onAddLoad({
-      currentLocation,
-      pickupLocation,
-      deliveryLocation,
-      pickupDate: new Date(pickupDate),
-      deliveryDate: new Date(deliveryDate),
-      emptyMiles: Number(emptyMiles),
-      loadedMiles: Number(loadedMiles),
-      totalMiles,
-    });
-    // Reset form
-    setCurrentLocation('');
-    setPickupLocation('');
-    setDeliveryLocation('');
-    setPickupDate('');
-    setDeliveryDate('');
+
+    setIsSubmitting(true);
+    try {
+      if (isEditMode) {
+        await onUpdateLoad({
+          ...loadToEdit, // Contains id and original timestamp
+          currentLocation,
+          pickupLocation,
+          deliveryLocation,
+          pickupDate: new Date(pickupDate + 'T00:00:00'), // Ensure local date is parsed correctly
+          deliveryDate: new Date(deliveryDate + 'T00:00:00'),
+          emptyMiles: Number(emptyMiles),
+          loadedMiles: Number(loadedMiles),
+          totalMiles,
+        });
+      } else {
+        await onAddLoad({
+          currentLocation,
+          pickupLocation,
+          deliveryLocation,
+          pickupDate: new Date(pickupDate + 'T00:00:00'), // Ensure local date is parsed correctly
+          deliveryDate: new Date(deliveryDate + 'T00:00:00'),
+          emptyMiles: Number(emptyMiles),
+          loadedMiles: Number(loadedMiles),
+          totalMiles,
+        });
+        resetForm(); // Reset form only on successful add
+      }
+    } catch (error) {
+      console.error(`Failed to ${isEditMode ? 'update' : 'add'} load from form`, error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800">Add New Load</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800">{isEditMode ? 'Edit Load' : 'Add New Load'}</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="currentLocation" className="block text-sm font-medium text-gray-700 mb-1">Current Location</label>
@@ -285,9 +338,24 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
             </div>
         </div>
 
-        <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-          Add Load
-        </button>
+        <div className="flex items-center space-x-4">
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Update Load' : 'Add Load')}
+          </button>
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

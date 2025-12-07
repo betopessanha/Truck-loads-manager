@@ -91,6 +91,18 @@ const LoadChart: React.FC<LoadChartProps> = ({ loads }) => {
     setSelectedYear(Number(event.target.value));
   };
 
+  const formatDate = (date: Date): string => {
+    // Manually construct date string to guarantee MM/DD/YYYY format.
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}/${day}/${year}`;
+  };
+
+  const formatDateRange = (start: Date, end: Date) => {
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6">
@@ -165,7 +177,7 @@ const LoadChart: React.FC<LoadChartProps> = ({ loads }) => {
                 <p className="font-semibold text-gray-700 text-sm truncate">{load.pickupLocation} ➜ {load.deliveryLocation}</p>
                 <div className="text-xs text-gray-500 mt-1 flex justify-between">
                    <span>Load ID: {load.id}</span>
-                   <span>{load.pickupDate.toLocaleDateString()} - {load.deliveryDate.toLocaleDateString()}</span>
+                   <span>{formatDateRange(load.pickupDate, load.deliveryDate)}</span>
                 </div>
                 <p className="text-right text-base font-bold text-blue-600 mt-2">{load.totalMiles.toLocaleString()} miles</p>
               </div>
