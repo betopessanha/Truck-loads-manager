@@ -58,13 +58,14 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
-      <header className="bg-white shadow-md">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="min-h-screen bg-slate-50 text-gray-800">
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mr-3 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-              <path d="M17.36 8.44a1 1 0 00-1.14-.26l-3.3 1.65a1 1 0 00-.62 1.1v4.34a1 1 0 001 1h2a1 1 0 001-1v-5.23a1 1 0 00-.3-.7zM15 14h-1v-3.3l2-1v4.3z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mr-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h2a1 1 0 001-1V7a1 1 0 00-1-1h-2" />
             </svg>
             Truck Load Manager
           </h1>
@@ -82,21 +83,25 @@ const App: React.FC = () => {
               <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                 <button
                   onClick={() => setActiveTab('evolution')}
-                  className={`${
-                    activeTab === 'evolution'
+                  className={`
+                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
+                    ${activeTab === 'evolution'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    }
+                  `}
                 >
                   Load Evolution
                 </button>
                 <button
                    onClick={() => setActiveTab('loads')}
-                  className={`${
-                    activeTab === 'loads'
+                   className={`
+                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
+                    ${activeTab === 'loads'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    }
+                  `}
                   aria-current={activeTab === 'loads' ? 'page' : undefined}
                 >
                   Issued Loads

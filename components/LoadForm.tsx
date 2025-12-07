@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { type Load } from '../types';
 import AutocompleteInput from './AutocompleteInput';
@@ -7,6 +8,44 @@ import { getDistanceFromLatLonInMiles } from '../utils/distance';
 interface LoadFormProps {
   onAddLoad: (load: Omit<Load, 'id' | 'timestamp'>) => void;
 }
+
+const formatDateForInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const DateShortcuts = ({ setDate }: { setDate: (date: string) => void }) => {
+  const today = new Date();
+
+  const shortcuts = [
+    { label: 'Today', days: 0 },
+    { label: 'Tomorrow', days: 1 },
+    { label: '+3 Days', days: 3 },
+  ];
+
+  const handleShortcutClick = (days: number) => {
+    const targetDate = new Date();
+    targetDate.setDate(today.getDate() + days);
+    setDate(formatDateForInput(targetDate));
+  };
+
+  return (
+    <div className="flex space-x-2 mt-2">
+      {shortcuts.map(({ label, days }) => (
+        <button
+          key={label}
+          type="button"
+          onClick={() => handleShortcutClick(days)}
+          className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500"
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
   const [currentLocation, setCurrentLocation] = useState('');
@@ -131,10 +170,10 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Add New Load</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="currentLocation" className="block text-sm font-medium text-gray-700">Current Location</label>
-          <div className="mt-1 flex rounded-md shadow-sm">
+          <label htmlFor="currentLocation" className="block text-sm font-medium text-gray-700 mb-1">Current Location</label>
+          <div className="flex rounded-md shadow-sm">
             <AutocompleteInput
               id="currentLocation"
               value={currentLocation}
@@ -165,7 +204,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
         </div>
 
         <div>
-          <label htmlFor="pickupLocation" className="block text-sm font-medium text-gray-700">Pickup Location</label>
+          <label htmlFor="pickupLocation" className="block text-sm font-medium text-gray-700 mb-1">Pickup Location</label>
            <AutocompleteInput
             id="pickupLocation"
             value={pickupLocation}
@@ -176,7 +215,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
         </div>
 
         <div>
-          <label htmlFor="deliveryLocation" className="block text-sm font-medium text-gray-700">Delivery Location</label>
+          <label htmlFor="deliveryLocation" className="block text-sm font-medium text-gray-700 mb-1">Delivery Location</label>
           <AutocompleteInput
             id="deliveryLocation"
             value={deliveryLocation}
@@ -186,7 +225,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
           />
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
             <div>
               <label htmlFor="pickupDate" className="block text-sm font-medium text-gray-700">Pickup Date</label>
               <input
@@ -196,6 +235,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
                 onChange={(e) => setPickupDate(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
+              <DateShortcuts setDate={setPickupDate} />
             </div>
             <div>
               <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-700">Delivery Date</label>
@@ -206,12 +246,13 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
                 onChange={(e) => setDeliveryDate(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
+              <DateShortcuts setDate={setDeliveryDate} />
             </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="emptyMiles" className="block text-sm font-medium text-gray-700">Empty Miles (Auto-calculated)</label>
+              <label htmlFor="emptyMiles" className="block text-sm font-medium text-gray-700">Empty Miles (Auto)</label>
               <input
                 type="text"
                 id="emptyMiles"
@@ -222,7 +263,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
               />
             </div>
             <div>
-              <label htmlFor="loadedMiles" className="block text-sm font-medium text-gray-700">Loaded Miles (Auto-calculated)</label>
+              <label htmlFor="loadedMiles" className="block text-sm font-medium text-gray-700">Loaded Miles (Auto)</label>
               <input
                 type="text"
                 id="loadedMiles"
@@ -234,12 +275,17 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
             </div>
         </div>
 
-        <div className="bg-blue-50 p-4 rounded-md text-center">
-            <p className="text-sm font-medium text-blue-800">Total Miles</p>
-            <p className="text-3xl font-bold text-blue-600">{totalMiles}</p>
+        <div className="bg-blue-50 p-4 rounded-lg flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500 mr-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-blue-800">Total Miles</p>
+              <p className="text-3xl font-bold text-blue-600">{totalMiles.toLocaleString()}</p>
+            </div>
         </div>
 
-        <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
           Add Load
         </button>
       </form>

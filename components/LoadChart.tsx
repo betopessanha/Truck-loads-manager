@@ -18,7 +18,7 @@ const LoadChart: React.FC<LoadChartProps> = ({ loads }) => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">Load Evolution (Miles)</h2>
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Load Evolution (Miles)</h2>
        {loads.length > 0 ? (
         <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
@@ -36,14 +36,15 @@ const LoadChart: React.FC<LoadChartProps> = ({ loads }) => {
                 <YAxis stroke="#6b7280"/>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid #d1d5db',
                     borderRadius: '0.5rem',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
                   }}
-                  formatter={(value, name, props) => [`${value} mi`, name]}
+                  formatter={(value: number, name) => [`${value.toLocaleString()} mi`, name]}
                   labelFormatter={(label, payload) => {
                     if (payload && payload[0]) {
-                        return `${label} (${payload[0].payload.date})`
+                        return <span className="font-bold">{`${label} (${payload[0].payload.date})`}</span>
                     }
                     return label
                   }}
