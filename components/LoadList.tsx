@@ -18,7 +18,9 @@ const LoadList: React.FC<LoadListProps> = ({ loads }) => {
             <div key={load.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-2">
                 <p className="font-semibold text-lg text-blue-700">{load.pickupLocation} ➜ {load.deliveryLocation}</p>
-                <p className="text-sm text-gray-500 mt-1 sm:mt-0">{load.timestamp.toLocaleDateString()}</p>
+                <p className="text-sm text-gray-500 mt-1 sm:mt-0">
+                  {load.pickupDate.toLocaleDateString()} - {load.deliveryDate.toLocaleDateString()}
+                </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mt-4 pt-4 border-t border-gray-100">
                 <div>

@@ -13,7 +13,7 @@ const LoadChart: React.FC<LoadChartProps> = ({ loads }) => {
     'Total Miles': load.totalMiles,
     'Empty Miles': load.emptyMiles,
     'Loaded Miles': load.loadedMiles,
-    date: load.timestamp.toLocaleDateString(),
+    date: load.pickupDate.toLocaleDateString(),
   }));
 
   return (

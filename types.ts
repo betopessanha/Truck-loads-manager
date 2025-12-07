@@ -8,4 +8,6 @@ export interface Load {
   loadedMiles: number;
   totalMiles: number;
   timestamp: Date;
+  pickupDate: Date;
+  deliveryDate: Date;
 }

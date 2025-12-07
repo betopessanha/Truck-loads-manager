@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { type Load } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import { usCities } from '../data/cities';
+import { getDistanceFromLatLonInMiles } from '../utils/distance';
 
 interface LoadFormProps {
   onAddLoad: (load: Omit<Load, 'id' | 'timestamp'>) => void;
@@ -12,16 +12,77 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
   const [currentLocation, setCurrentLocation] = useState('');
   const [pickupLocation, setPickupLocation] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [emptyMiles, setEmptyMiles] = useState('');
   const [loadedMiles, setLoadedMiles] = useState('');
   const [totalMiles, setTotalMiles] = useState(0);
   const [isLocating, setIsLocating] = useState(false);
+
+  const cityNames = usCities.map(city => city.name);
 
   useEffect(() => {
     const empty = Number(emptyMiles) || 0;
     const loaded = Number(loadedMiles) || 0;
     setTotalMiles(empty + loaded);
   }, [emptyMiles, loadedMiles]);
+
+  useEffect(() => {
+    const getCoords = (locationName: string) => usCities.find(c => c.name === locationName);
+
+    let startCoords: { latitude: number; longitude: number } | null = null;
+    let endCoords: { latitude: number; longitude: number } | null = null;
+
+    // Determine start coordinates from either geolocation string or city name
+    if (currentLocation.startsWith('Lat:')) {
+      const parts = currentLocation.replace(/Lat:\s*|Lon:\s*/g, '').split(', ');
+      if (parts.length === 2) {
+        const lat = parseFloat(parts[0]);
+        const lon = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          startCoords = { latitude: lat, longitude: lon };
+        }
+      }
+    } else if (currentLocation) {
+      startCoords = getCoords(currentLocation) || null;
+    }
+
+    // Determine end coordinates from city name
+    if (pickupLocation) {
+      endCoords = getCoords(pickupLocation) || null;
+    }
+
+    if (startCoords && endCoords) {
+      const distance = getDistanceFromLatLonInMiles(
+        startCoords.latitude,
+        startCoords.longitude,
+        endCoords.latitude,
+        endCoords.longitude
+      );
+      setEmptyMiles(String(Math.round(distance)));
+    } else {
+      setEmptyMiles('');
+    }
+  }, [currentLocation, pickupLocation]);
+  
+  useEffect(() => {
+    const getCoords = (locationName: string) => usCities.find(c => c.name === locationName);
+
+    const pickupCoords = getCoords(pickupLocation);
+    const deliveryCoords = getCoords(deliveryLocation);
+
+    if (pickupCoords && deliveryCoords) {
+        const distance = getDistanceFromLatLonInMiles(
+            pickupCoords.latitude,
+            pickupCoords.longitude,
+            deliveryCoords.latitude,
+            deliveryCoords.longitude
+        );
+        setLoadedMiles(String(Math.round(distance)));
+    } else {
+        setLoadedMiles('');
+    }
+  }, [pickupLocation, deliveryLocation]);
 
   const handleGetCurrentLocation = () => {
     if (navigator.geolocation) {
@@ -45,7 +106,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentLocation || !pickupLocation || !deliveryLocation || !emptyMiles || !loadedMiles) {
+    if (!currentLocation || !pickupLocation || !deliveryLocation || !pickupDate || !deliveryDate || !emptyMiles || !loadedMiles) {
       alert('Please fill in all fields.');
       return;
     }
@@ -53,6 +114,8 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
       currentLocation,
       pickupLocation,
       deliveryLocation,
+      pickupDate: new Date(pickupDate),
+      deliveryDate: new Date(deliveryDate),
       emptyMiles: Number(emptyMiles),
       loadedMiles: Number(loadedMiles),
       totalMiles,
@@ -61,8 +124,8 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
     setCurrentLocation('');
     setPickupLocation('');
     setDeliveryLocation('');
-    setEmptyMiles('');
-    setLoadedMiles('');
+    setPickupDate('');
+    setDeliveryDate('');
   };
 
   return (
@@ -76,7 +139,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
               id="currentLocation"
               value={currentLocation}
               onChange={setCurrentLocation}
-              suggestions={usCities}
+              suggestions={cityNames}
               placeholder="Ex: Chicago, IL"
               wrapperClassName="flex-1"
               inputClassName="bg-white focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-none rounded-l-md sm:text-sm border-gray-300 pl-3 pr-10 py-2"
@@ -107,7 +170,7 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
             id="pickupLocation"
             value={pickupLocation}
             onChange={setPickupLocation}
-            suggestions={usCities}
+            suggestions={cityNames}
             placeholder="Ex: Port of Long Beach, CA"
           />
         </div>
@@ -118,32 +181,55 @@ const LoadForm: React.FC<LoadFormProps> = ({ onAddLoad }) => {
             id="deliveryLocation"
             value={deliveryLocation}
             onChange={setDeliveryLocation}
-            suggestions={usCities}
+            suggestions={cityNames}
             placeholder="Ex: Warehouse in Phoenix, AZ"
           />
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="emptyMiles" className="block text-sm font-medium text-gray-700">Empty Miles</label>
+              <label htmlFor="pickupDate" className="block text-sm font-medium text-gray-700">Pickup Date</label>
               <input
-                type="number"
-                id="emptyMiles"
-                value={emptyMiles}
-                onChange={(e) => setEmptyMiles(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="50"
+                type="date"
+                id="pickupDate"
+                value={pickupDate}
+                onChange={(e) => setPickupDate(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
             <div>
-              <label htmlFor="loadedMiles" className="block text-sm font-medium text-gray-700">Loaded Miles</label>
+              <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-700">Delivery Date</label>
               <input
-                type="number"
+                type="date"
+                id="deliveryDate"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="emptyMiles" className="block text-sm font-medium text-gray-700">Empty Miles (Auto-calculated)</label>
+              <input
+                type="text"
+                id="emptyMiles"
+                value={emptyMiles}
+                className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm cursor-not-allowed"
+                placeholder="Select locations..."
+                readOnly
+              />
+            </div>
+            <div>
+              <label htmlFor="loadedMiles" className="block text-sm font-medium text-gray-700">Loaded Miles (Auto-calculated)</label>
+              <input
+                type="text"
                 id="loadedMiles"
                 value={loadedMiles}
-                onChange={(e) => setLoadedMiles(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="250"
+                className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm cursor-not-allowed"
+                placeholder="Select locations..."
+                readOnly
               />
             </div>
         </div>

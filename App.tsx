@@ -17,6 +17,8 @@ const App: React.FC = () => {
       loadedMiles: 135,
       totalMiles: 230,
       timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      pickupDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      deliveryDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
     },
     {
       id: '2',
@@ -27,6 +29,8 @@ const App: React.FC = () => {
       loadedMiles: 300,
       totalMiles: 570,
       timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      pickupDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      deliveryDate: new Date(),
     },
     {
       id: '3',
@@ -37,8 +41,12 @@ const App: React.FC = () => {
       loadedMiles: 1500,
       totalMiles: 1550,
       timestamp: new Date(), // Today
+      pickupDate: new Date(),
+      deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
     },
   ]);
+  const [activeTab, setActiveTab] = useState<'evolution' | 'loads'>('evolution');
+
 
   const addLoad = (load: Omit<Load, 'id' | 'timestamp'>) => {
     const newLoad: Load = {
@@ -69,9 +77,36 @@ const App: React.FC = () => {
           <div className="lg:col-span-1">
             <LoadForm onAddLoad={addLoad} />
           </div>
-          <div className="lg:col-span-2 space-y-8">
-            <LoadChart loads={loads} />
-            <LoadList loads={loads} />
+          <div className="lg:col-span-2">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                <button
+                  onClick={() => setActiveTab('evolution')}
+                  className={`${
+                    activeTab === 'evolution'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                >
+                  Load Evolution
+                </button>
+                <button
+                   onClick={() => setActiveTab('loads')}
+                  className={`${
+                    activeTab === 'loads'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                  aria-current={activeTab === 'loads' ? 'page' : undefined}
+                >
+                  Issued Loads
+                </button>
+              </nav>
+            </div>
+            <div className="mt-8">
+              {activeTab === 'evolution' && <LoadChart loads={loads} />}
+              {activeTab === 'loads' && <LoadList loads={loads} />}
+            </div>
           </div>
         </div>
       </main>
