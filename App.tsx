@@ -1,66 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import LoadForm from './components/LoadForm';
-import LoadList from './components/LoadList';
-import LoadChart from './components/LoadChart';
+import React, { useState, useEffect, useCallback } from 'react';
 import { type Load } from './types';
-import { supabase } from './supabaseClient';
-
-// Helper function to reliably format a Date object to a 'YYYY-MM-DD' string
-// based on the user's local timezone, avoiding UTC conversion issues.
-const formatForSupabase = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+import { supabase, setSupabaseConfig } from './supabaseClient';
+import { getWeekRange } from './utils/date';
+import WeeklyReport from './components/WeeklyReport';
+import LoadForm from './components/LoadForm';
+import Modal from './components/Modal';
+import Sidebar from './components/Sidebar';
 
 const App: React.FC = () => {
   const [loads, setLoads] = useState<Load[]>([]);
-  const [activeTab, setActiveTab] = useState<'evolution' | 'loads'>('loads');
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLoad, setEditingLoad] = useState<Load | null>(null);
 
-  // If Supabase isn't configured, show a helpful message instead of crashing.
+  // Configuration State for the fallback UI
+  const [configUrl, setConfigUrl] = useState('');
+  const [configKey, setConfigKey] = useState('');
+
+  // 1. If Supabase is not configured, show the setup screen
   if (!supabase) {
+    const handleSaveConfig = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!configUrl || !configKey) {
+        alert("Please enter both URL and Key");
+        return;
+      }
+      setSupabaseConfig(configUrl, configKey);
+    };
+
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Required</h1>
-          <p className="text-gray-700 mb-2">
-            The application cannot connect to the database because the Supabase environment variables are missing.
-          </p>
-          <p className="text-gray-700 mb-6">
-            Please configure the following secrets for your project:
-          </p>
-          <div className="text-left bg-gray-100 p-4 rounded-md font-mono text-sm text-gray-800">
-            <p><span className="font-semibold">SUPABASE_URL</span> = <span className="text-gray-500">"Your Supabase Project URL"</span></p>
-            <p className="mt-2"><span className="font-semibold">SUPABASE_ANON_KEY</span> = <span className="text-gray-500">"Your Supabase Anon Key"</span></p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-xl max-w-md w-full">
+          <div className="text-center mb-6">
+            <div className="bg-blue-100 p-3 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Connect to Supabase</h1>
+            <p className="text-gray-500 mt-2 text-sm">Enter your project credentials to start managing loads.</p>
           </div>
-          <p className="text-sm text-gray-500 mt-6">
-            You can find these values in your Supabase project dashboard under <span className="font-semibold">Settings &gt; API</span>.
-          </p>
+
+          <form onSubmit={handleSaveConfig} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Project URL</label>
+              <input 
+                type="text" 
+                value={configUrl}
+                onChange={(e) => setConfigUrl(e.target.value)}
+                placeholder="https://xyz.supabase.co"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Key (Anon/Public)</label>
+              <input 
+                type="password" 
+                value={configKey}
+                onChange={(e) => setConfigKey(e.target.value)}
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 outline-none"
+              />
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 font-medium transition-colors"
+            >
+              Connect App
+            </button>
+          </form>
+          <div className="mt-6 text-xs text-gray-400 text-center">
+            Credentials are saved locally in your browser.
+          </div>
         </div>
       </div>
     );
   }
 
-  useEffect(() => {
-    const fetchLoads = async () => {
-      setLoading(true);
-      setError(null);
+  const fetchLoads = useCallback(async (date: Date) => {
+    setLoading(true);
+    setError(null);
 
+    const { start, end } = getWeekRange(date);
+
+    try {
       const { data, error } = await supabase
         .from('loads')
         .select('*')
-        .order('timestamp', { ascending: false });
+        .gte('pickupDate', start)
+        .lte('pickupDate', end)
+        .order('pickupDate', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching loads:', error);
-        setError('Failed to fetch loads. Please check your Supabase configuration and RLS policies.');
-      } else if (data) {
-        // Convert date strings from Supabase to Date objects, ensuring correct timezone handling.
-        // Appending T00:00:00 treats the date string as local, preventing UTC conversion shifts.
+      if (error) throw error;
+
+      if (data) {
         const formattedData = data.map(load => ({
           ...load,
           timestamp: new Date(load.timestamp),
@@ -69,176 +105,142 @@ const App: React.FC = () => {
         }));
         setLoads(formattedData);
       }
+    } catch (err: any) {
+      console.error('Error fetching loads:', err);
+      // Friendly error message for common issues
+      if (err.message === 'Failed to fetch') {
+        setError("Connection failed. Please check your internet or Supabase URL.");
+      } else if (err.code === '42P01') {
+        setError("Database table 'loads' not found. Please run the SQL setup script.");
+      } else {
+        setError(err.message || "An unexpected error occurred.");
+      }
+    } finally {
       setLoading(false);
-    };
-
-    fetchLoads();
+    }
   }, []);
 
-  const addLoad = async (load: Omit<Load, 'id' | 'timestamp'>) => {
+  useEffect(() => {
+    fetchLoads(currentDate);
+  }, [currentDate, fetchLoads]);
+
+  const handleAddLoad = async (load: Omit<Load, 'id' | 'timestamp'>) => {
     const { data, error } = await supabase
       .from('loads')
-      .insert([
-        {
-          ...load,
-          pickupDate: formatForSupabase(load.pickupDate),
-          deliveryDate: formatForSupabase(load.deliveryDate),
-        },
-      ])
+      .insert([load])
       .select()
       .single();
 
     if (error) {
-      console.error('Error adding load:', error);
-      alert('Failed to add load.');
-      throw error; // Re-throw to be caught in the form
-    } 
+      alert(`Failed to add load: ${error.message}`);
+      throw error;
+    }
     
     if (data) {
-      const newLoad = {
-        ...data,
-        timestamp: new Date(data.timestamp),
-        pickupDate: new Date(data.pickupDate + 'T00:00:00'),
-        deliveryDate: new Date(data.deliveryDate + 'T00:00:00'),
-      };
-      setLoads(prevLoads => [newLoad, ...prevLoads]);
+      fetchLoads(currentDate); // Refetch to show the new load if it's in the current week
+      setIsFormOpen(false);
     }
-  };
-
-  const handleStartEdit = (load: Load) => {
-    setEditingLoad(load);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingLoad(null);
   };
 
   const handleUpdateLoad = async (updatedLoad: Load) => {
-    const { data, error } = await supabase
+    const { id, ...updateData } = updatedLoad;
+    const { error } = await supabase
       .from('loads')
-      .update({
-        // Omit id and timestamp from the update payload, they shouldn't change
-        currentLocation: updatedLoad.currentLocation,
-        pickupLocation: updatedLoad.pickupLocation,
-        deliveryLocation: updatedLoad.deliveryLocation,
-        emptyMiles: updatedLoad.emptyMiles,
-        loadedMiles: updatedLoad.loadedMiles,
-        totalMiles: updatedLoad.totalMiles,
-        pickupDate: formatForSupabase(updatedLoad.pickupDate),
-        deliveryDate: formatForSupabase(updatedLoad.deliveryDate),
-        reference: updatedLoad.reference,
-      })
-      .eq('id', updatedLoad.id)
-      .select()
-      .single();
+      .update(updateData)
+      .eq('id', id);
 
     if (error) {
-      console.error('Error updating load:', error);
-      alert('Failed to update load.');
+      alert(`Failed to update load: ${error.message}`);
       throw error;
     }
+    
+    fetchLoads(currentDate); // Refetch to show updated data
+    setIsFormOpen(false);
+    setEditingLoad(null);
+  };
+  
+  const handleDeleteLoad = async (loadId: number) => {
+    if (!window.confirm('Are you sure you want to delete this load?')) return;
 
-    if (data) {
-      const freshLoad = {
-        ...data,
-        timestamp: new Date(data.timestamp),
-        pickupDate: new Date(data.pickupDate + 'T00:00:00'),
-        deliveryDate: new Date(data.deliveryDate + 'T00:00:00'),
-      };
-      setLoads(loads.map(l => l.id === freshLoad.id ? freshLoad : l));
-      setEditingLoad(null); // Exit edit mode
+    const { error } = await supabase.from('loads').delete().eq('id', loadId);
+
+    if (error) {
+      alert(`Failed to delete load: ${error.message}`);
+    } else {
+      fetchLoads(currentDate); // Refetch to remove the deleted load
     }
   };
 
-  const handleDeleteLoad = async (loadId: number) => {
-    if (!window.confirm('Are you sure you want to delete this load?')) {
-      return;
-    }
+  const handleOpenAddModal = () => {
+    setEditingLoad(null);
+    setIsFormOpen(true);
+  };
 
-    const { error } = await supabase
-      .from('loads')
-      .delete()
-      .eq('id', loadId);
-
-    if (error) {
-      console.error('Error deleting load:', error);
-      alert(`Failed to delete load: ${error.message}`);
-    } else {
-      setLoads(loads.filter(load => load.id !== loadId));
-    }
+  const handleOpenEditModal = (load: Load) => {
+    setEditingLoad(load);
+    setIsFormOpen(true);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-gray-800">
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8 mr-3 text-blue-600">
-              <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM22.5 13.5V6.375c0-1.035-.84-1.875-1.875-1.875h-.375a3 3 0 0 0-3-3H9.375a3 3 0 0 0-3 3H6c-1.036 0-1.875.84-1.875 1.875v7.125c0 .621.504 1.125 1.125 1.125h.375a3 3 0 0 1 5.25 0h.375a3 3 0 0 1 5.25 0h.375c.621 0 1.125-.504 1.125-1.125v-7.125Zm-18-3a.375.375 0 0 1 .375-.375h.375a.375.375 0 0 1 .375.375v.375h-.75V10.5Z" />
-              <path d="M8.25 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM15.75 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
-            </svg>
-            Truck Load Manager
-          </h1>
-          <p className="text-gray-600 mt-1">Manage your truck loads efficiently</p>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 text-gray-800 flex">
+      <Sidebar />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="bg-white shadow-sm border-b border-gray-200 z-10">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8 mr-3 text-blue-600">
+                <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM22.5 13.5V6.375c0-1.035-.84-1.875-1.875-1.875h-.375a3 3 0 0 0-3-3H9.375a3 3 0 0 0-3 3H6c-1.036 0-1.875.84-1.875 1.875v7.125c0 .621.504 1.125 1.125 1.125h.375a3 3 0 0 1 5.25 0h.375a3 3 0 0 1 5.25 0h.375c.621 0 1.125-.504 1.125-1.125v-7.125Zm-18-3a.375.375 0 0 1 .375-.375h.375a.375.375 0 0 1 .375.375v.375h-.75V10.5Z" />
+                <path d="M8.25 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM15.75 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+              </svg>
+              Truck Load Manager
+            </h1>
+          </div>
+        </header>
 
-      <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <LoadForm 
-              onAddLoad={addLoad} 
-              loadToEdit={editingLoad}
-              onUpdateLoad={handleUpdateLoad}
-              onCancelEdit={handleCancelEdit}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-4 sm:space-x-8" aria-label="Tabs">
-                <button
-                  onClick={() => setActiveTab('evolution')}
-                  className={`
-                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
-                    ${activeTab === 'evolution'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }
-                  `}
-                >
-                  Load Evolution
-                </button>
-                <button
-                   onClick={() => setActiveTab('loads')}
-                   className={`
-                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
-                    ${activeTab === 'loads'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }
-                  `}
-                  aria-current={activeTab === 'loads' ? 'page' : undefined}
-                >
-                  Issued Loads
-                </button>
-              </nav>
-            </div>
-            <div className="mt-8">
-              {activeTab === 'evolution' && <LoadChart loads={loads} />}
-              {activeTab === 'loads' && (
-                loading ? (
-                  <div className="flex justify-center items-center h-48"><p className="text-gray-500">Loading loads...</p></div>
-                ) : error ? (
-                  <div className="flex justify-center items-center h-48"><p className="text-red-500 font-medium">{error}</p></div>
-                ) : (
-                  <LoadList loads={loads} onEdit={handleStartEdit} onDelete={handleDeleteLoad} />
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
+        <main className="flex-1 container mx-auto p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          {error && (
+             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r">
+                <div className="flex">
+                    <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    </div>
+                    <div className="ml-3">
+                        <p className="text-sm text-red-700">{error}</p>
+                        {error.includes("table 'loads' not found") && (
+                            <p className="text-xs text-red-500 mt-1">
+                                Did you run the SQL script? Check the chat history for the <code>CREATE TABLE</code> command.
+                            </p>
+                        )}
+                    </div>
+                </div>
+             </div>
+          )}
+          
+          <WeeklyReport 
+            loads={loads}
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
+            loading={loading}
+            error={null} // We handle error in parent now
+            onAddLoad={handleOpenAddModal}
+            onEditLoad={handleOpenEditModal}
+            onDeleteLoad={handleDeleteLoad}
+          />
+        </main>
+      </div>
+      
+      {isFormOpen && (
+        <Modal title={editingLoad ? 'Edit Load' : 'Add New Load'} onClose={() => setIsFormOpen(false)}>
+          <LoadForm 
+            onAddLoad={handleAddLoad} 
+            loadToEdit={editingLoad}
+            onUpdateLoad={handleUpdateLoad}
+            onCancelEdit={() => setIsFormOpen(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 };

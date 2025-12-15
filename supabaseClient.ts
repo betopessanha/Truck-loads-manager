@@ -1,12 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 
-// These environment variables should be configured for your project as secrets.
-// They are typically found in your Supabase project's API settings.
-const supabaseUrl = "https://stkounpbfofiltkfncog.supabase.co";
-const supabaseAnonKey = "sb_publishable_ERU8ezXxPG4XjWf3kcT5aA_UA6OivxJ";
+// Tries to get config from Environment Variables first (Secure/Production)
+// If not found, tries to get from LocalStorage (Development/Prototyping)
+const envUrl = process.env.SUPABASE_URL;
+const envKey = process.env.SUPABASE_ANON_KEY;
 
-// Conditionally create the client. If the variables are not set, supabase will be null.
-// This prevents the application from crashing on startup and allows the UI to show a helpful message.
+const localUrl = typeof window !== 'undefined' ? localStorage.getItem('tlm_supabase_url') : null;
+const localKey = typeof window !== 'undefined' ? localStorage.getItem('tlm_supabase_key') : null;
+
+const supabaseUrl = envUrl || localUrl;
+const supabaseAnonKey = envKey || localKey;
+
+// Conditionally create the client.
 export const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+// Helper to save credentials via UI
+export const setSupabaseConfig = (url: string, key: string) => {
+  localStorage.setItem('tlm_supabase_url', url);
+  localStorage.setItem('tlm_supabase_key', key);
+  window.location.reload(); // Reload to initialize client with new keys
+};
+
+// Helper to clear credentials (Logout/Disconnect)
+export const clearSupabaseConfig = () => {
+  localStorage.removeItem('tlm_supabase_url');
+  localStorage.removeItem('tlm_supabase_key');
+  window.location.reload();
+};
